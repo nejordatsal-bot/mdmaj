@@ -168,7 +168,7 @@ def scan_wallet_concurrently(wallets):
     """فحص جميع الشبكات لنفس المحفظة بشكل متزامن لزيادة السرعة"""
     tasks = []
     results = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=40) as executor:
         for btc_type in ["BTC_Native", "BTC_SegWit", "BTC_Legacy"]:
             for addr in wallets[btc_type]:
                 tasks.append(executor.submit(scan_bitcoin_address, addr, btc_type))

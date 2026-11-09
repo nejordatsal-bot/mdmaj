@@ -22,7 +22,7 @@ TEST_ADDRESS = "0x70599B23CF2a064d656643282a3C679F3fF03beB"
 SESSION = requests.Session()
 SESSION.headers.update({
     "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) WalletScanner/5.0"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) WalletScanner/6.0"
 })
 
 EVM_NETWORKS = {
@@ -62,7 +62,6 @@ def derive_all_wallet_addresses(mnemonic_phrase, num_accounts=1):
         "EVM": [], "BTC_Native": [], "BTC_SegWit": [], 
         "BTC_Legacy": [], "TRX": [], "SOL": [], "LTC": [], "DOGE": []
     }
-
     for i in range(num_accounts):
         derived["EVM"].append(Bip44.FromSeed(seed_bytes, Bip44Coins.ETHEREUM).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(i).PublicKey().ToAddress())
         derived["BTC_Native"].append(Bip84.FromSeed(seed_bytes, Bip84Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(i).PublicKey().ToAddress())
@@ -165,10 +164,10 @@ def scan_wallet_concurrently(wallets):
 
 def run_startup_test():
     if not TEST_MNEMONIC and not TEST_ADDRESS:
-        send_telegram_alert("✅ تم تشغيل الكود بنجاح.")
+        send_telegram_alert("✅ تم تشغيل السيرفر بنجاح وهو يعمل الآن.")
         return
 
-    test_msg = "✅ تم تشغيل الكود بنجاح.\n\nنتائج محفظة التشييك:\n"
+    test_msg = "✅ تم تشغيل السيرفر بنجاح.\n\nنتائج التشييك:\n"
     found_any = False
     try:
         if TEST_MNEMONIC:
@@ -192,7 +191,7 @@ def trigger_alert_and_stop(phrase, active_data):
         f"📬 العنوان: {active_data['address']}\n"
         f"💎 الرصيد: {active_data['balance']} {active_data['symbol']}\n"
         f"📊 المعاملات: {active_data['tx_count']}\n"
-        f"🛑 تم إيقاف البوت."
+        f"🛑 تم إيقاف البوت لتتمكن من التحقق."
     )
     send_telegram_alert(alert_message)
     sys.exit(0)
@@ -201,7 +200,6 @@ def run_continuous_scanner():
     run_startup_test()
     mnemo = Mnemonic("english")
     total_checked = 0
-    recent_50 = []
     
     while True:
         total_checked += 1
@@ -212,22 +210,15 @@ def run_continuous_scanner():
         if active_data:
             trigger_alert_and_stop(phrase, active_data)
         else:
-            recent_50.append(phrase)
+            print(f"الكلمات: {phrase} [فحص المحفظة رقم {total_checked}]")
+            print("لا يوجد رصيد ولا معاملات. الكود نظيف.")
             
-        # إرسال تقرير كل 50 محفظة
-        if len(recent_50) == 50:
-            msg = f"📋 آخر 50 محفظة نظيفة:\n"
-            for i, p in enumerate(recent_50, 1):
-                msg += f"{i}- {p}\n"
-            msg += f"\n📊 إجمالي المفحوص: {total_checked}"
+        # رسالة كل 200 محفظة وتجنب التعليق
+        if total_checked % 200 == 0:
+            msg = f"🔄 تحديث السيرفر:\n✅ تم فحص {total_checked} محفظة نظيفة بنجاح حتى الآن.\nاستراحة قصيرة لتحديث الاتصال بالشبكات..."
             send_telegram_alert(msg)
-            recent_50.clear()
-            
-        # إعادة تشغيل الكود تلقائياً كل 200 محفظة لتجنب الحظر وتفريغ الذاكرة
-        if total_checked >= 200:
-            send_telegram_alert(f"🔄 تم فحص 200 محفظة بنجاح. يتم الآن إعادة تشغيل السيرفر لتحديث الاتصال...")
-            print("🔄 إعادة تشغيل دورية بعد 200 محفظة لتجنب الحظر...")
-            sys.exit(0)
+            print("🔄 استراحة 10 ثواني لتجنب حظر الخوادم (Rate Limit)...")
+            time.sleep(10)
 
 if __name__ == "__main__":
     run_continuous_scanner()
